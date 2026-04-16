@@ -2,9 +2,9 @@ import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
 import { ReconciliationsService } from './reconciliations.service';
 
 class RunReconciliationDto {
-  companyId: string;
-  periodStart: string;
-  periodEnd: string;
+  companyId!: string;
+  periodStart!: string;
+  periodEnd!: string;
 }
 
 @Controller('reconciliations')

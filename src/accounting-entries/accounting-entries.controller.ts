@@ -2,8 +2,8 @@ import { Controller, Post, Body, Get, Query } from '@nestjs/common';
 import { AccountingEntriesService, ParsedAccountingEntry } from './accounting-entries.service';
 
 class ImportAccountingEntriesDto {
-  companyId: string;
-  entries: ParsedAccountingEntry[];
+  companyId!: string;
+  entries!: ParsedAccountingEntry[];
 }
 
 @Controller('accounting-entries')

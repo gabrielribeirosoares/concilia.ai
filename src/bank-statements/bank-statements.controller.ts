@@ -2,8 +2,8 @@ import { Controller, Post, Body, Get, Query } from '@nestjs/common';
 import { BankStatementsService, ParsedBankEntry } from './bank-statements.service';
 
 class ImportBankStatementsDto {
-  companyId: string;
-  entries: ParsedBankEntry[];
+  companyId!: string;
+  entries!: ParsedBankEntry[];
 }
 
 @Controller('bank-statements')
