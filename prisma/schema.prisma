@@ -7,11 +7,184 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  OPERATOR
+  VIEWER
+}
+
+enum ExportStatus {
+  GENERATED
+  DOWNLOADED
+  SENT
+  ERROR
+}
+
+enum ImportStatus {
+  UPLOADED
+  PARSED
+  MATCHED
+  EXPORTED
+  ERROR
+}
+
+enum MatchStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+}
+
 model Company {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   name           String
-  documentNumber  String   @unique
+  documentNumber String         @unique
   tradeName      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status         CompanyStatus  @default(ACTIVE)
+  users          User[]
+  bankAccounts   BankAccount[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model User {
+  id           String     @id @default(cuid())
+  companyId    String
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         UserRole   @default(OPERATOR)
+  status       String     @default("active")
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model BankAccount {
+  id              String   @id @default(cuid())
+  companyId       String
+  bankName        String
+  bankCode        String
+  branchNumber    String
+  accountNumber   String
+  accountDigit    String?
+  accountType     String?
+  currency        String   @default("BRL")
+  active          Boolean  @default(true)
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  statementImports StatementImport[]
+  internalEntries  InternalEntry[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model StatementImport {
+  id            String                @id @default(cuid())
+  companyId     String
+  bankAccountId String
+  fileName      String
+  fileType      String
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  status        ImportStatus          @default(UPLOADED)
+  importedBy    String?
+  rawPayload    Json?
+  bankAccount   BankAccount           @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  transactions  StatementTransaction[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+model StatementTransaction {
+  id                 String           @id @default(cuid())
+  statementImportId   String
+  transactionDate     DateTime
+  postingDate         DateTime?
+  description         String
+  amount              Decimal          @db.Decimal(18, 2)
+  balance             Decimal?         @db.Decimal(18, 2)
+  transactionType     String
+  externalId          String?
+  rawPayload          Json?
+  statementImport     StatementImport  @relation(fields: [statementImportId], references: [id], onDelete: Cascade)
+  matches             ReconciliationMatch[]
+  createdAt           DateTime         @default(now())
+}
+
+model InternalEntry {
+  id              String   @id @default(cuid())
+  companyId       String
+  bankAccountId   String?
+  sourceSystem    String
+  sourceReference String?
+  entryDate       DateTime
+  description     String
+  amount          Decimal  @db.Decimal(18, 2)
+  entryType       String
+  status          String   @default("open")
+  rawPayload      Json?
+  bankAccount     BankAccount? @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
+  matches         ReconciliationMatch[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ReconciliationRule {
+  id                      String   @id @default(cuid())
+  companyId               String
+  name                    String
+  priority                Int      @default(0)
+  matchByAmount           Boolean  @default(true)
+  matchByDateToleranceDays Int     @default(3)
+  matchByDescription      Boolean  @default(true)
+  allowPartialMatch       Boolean  @default(false)
+  active                  Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model ReconciliationMatch {
+  id                     String              @id @default(cuid())
+  companyId              String
+  statementTransactionId String
+  internalEntryId        String
+  matchType              String
+  confidenceScore        Float               @default(0)
+  status                 MatchStatus         @default(PROPOSED)
+  matchedBy              String?
+  matchedAt              DateTime?
+  statementTransaction   StatementTransaction @relation(fields: [statementTransactionId], references: [id], onDelete: Cascade)
+  internalEntry          InternalEntry        @relation(fields: [internalEntryId], references: [id], onDelete: Cascade)
+  createdAt              DateTime             @default(now())
+}
+
+model Export {
+  id            String       @id @default(cuid())
+  companyId     String
+  bankAccountId String
+  targetSystem  String       @default("questor")
+  exportFormat  String
+  fileName      String
+  filePath      String
+  status        ExportStatus  @default(GENERATED)
+  createdBy     String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  companyId   String
+  userId      String?
+  entityName  String
+  entityId    String
+  action      String
+  beforeData  Json?
+  afterData   Json?
+  createdAt   DateTime @default(now())
 }
